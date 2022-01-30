@@ -1,4 +1,5 @@
 # The Go Programming Language
+Я вообще хз)) Это не я писал
 
 This repository provides the downloadable example programs
 for the book, "The Go Programming Language"; see http://www.gopl.io.
