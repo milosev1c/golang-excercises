@@ -9,13 +9,18 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/gif"
 	"io"
+	"log"
 	"math"
 	"math/rand"
+	"net/http"
 	"os"
+	"strconv"
+	"strings"
 )
 
 //!-main
@@ -26,12 +31,7 @@ import (
 
 //!+main
 
-var palette []color.Color
-
-const (
-	whiteIndex = 0 // first color in palette
-	blackIndex = 1 // next color in palette
-)
+var palette = []color.Color{color.Black, color.RGBA{R: 255, A: 255}, color.RGBA{B: 255, A: 255}, color.RGBA{G: 255, A: 255}, color.RGBA{R: 0xA8, G: 0xE4, B: 0xA0, A: 0xFF}}
 
 func main() {
 	//!-main
@@ -39,75 +39,80 @@ func main() {
 	// the pseudo-random number generator using the current time.
 	// Thanks to Randall McPherson for pointing out the omission.
 	rand.Seed(time.Now().UTC().UnixNano())
-	var bg_color, paint_color color.Color
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "black":
-			bg_color = color.Black
-		case "red":
-			bg_color = color.RGBA{R: 255, A: 255}
-		case "green":
-			bg_color = color.RGBA{G: 255, A: 255}
-		case "blue":
-			bg_color = color.RGBA{B: 255, A: 255}
-		default:
-			bg_color = color.Black
-		}
-		if len(os.Args) > 2 {
-			switch os.Args[2] {
-			case "black":
-				paint_color = color.Black
-			case "red":
-				paint_color = color.RGBA{R: 255, A: 255}
-			case "green":
-				paint_color = color.RGBA{G: 255, A: 255}
-			case "blue":
-				paint_color = color.RGBA{B: 255, A: 255}
-			default:
-				paint_color = color.Black
-			}
-		} else {
-			paint_color = color.RGBA{G: 255, A: 255}
-		}
-	} else {
-		bg_color = color.Black
-		paint_color = color.RGBA{G: 255, A: 255}
-	}
 
 	//!+main
-	lissajous(os.Stdout, bg_color, paint_color)
+	args := make(map[string]string)
+	for _, arg := range os.Args[1:] {
+		argsPieces := strings.Split(arg, "=")
+		args[strings.Replace(argsPieces[0], "-", "", 5)] = argsPieces[1]
+	}
+	fmt.Println(args["type"])
+	bgColor, _ := strconv.Atoi(args["bgcolor"])
+	drawColor, _ := strconv.Atoi(args["drawcolor"])
+	if val, ok := args["type"]; val == "web" && ok {
+		//!+http
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			//form := make(map[string]string)
+			err := r.ParseForm()
+			if err != nil {
+				fmt.Println("Леее брат ошибка с запуском сервера")
+			}
+			cycles, nframes := 5, 256
+			if val, ok := r.Form["cycles"]; ok {
+				cycles, _ = strconv.Atoi(val[0])
+			}
+			if val, ok := r.Form["nframes"]; ok {
+				nframes, _ = strconv.Atoi(val[0])
+			}
+			if val, ok := r.Form["bgcolor"]; ok {
+				bgColor, _ = strconv.Atoi(val[0])
+			}
+			if val, ok := r.Form["drawcolor"]; ok {
+				drawColor, _ = strconv.Atoi(val[0])
+			}
+			lissajous(w, uint8(bgColor), uint8(drawColor), cycles, nframes)
+		}
+		http.HandleFunc("/", handler)
+		//!-http
+		log.Fatal(http.ListenAndServe("localhost:8000", nil))
+		return
+	}
 }
 
-func lissajous(out io.Writer, bg_color color.Color, paint_color color.Color) {
+func lissajous(out io.Writer, bgIndex uint8, drawIndex uint8, cycles int, nframes int) {
+	if nframes == 0 {
+		nframes = 256
+	}
+	if cycles == 0 {
+		cycles = 5
+	}
 	const (
-		cycles  = 5     // number of complete x oscillator revolutions
-		res     = 0.001 // angular resolution
-		size    = 400   // image canvas covers [-size..+size]
-		nframes = 256   // number of animation frames
-		delay   = 4     // delay between frames in 10ms units
+		res   = 0.001 // angular resolution
+		size  = 400   // image canvas covers [-size..+size]
+		delay = 4     // delay between frames in 10ms units
 	)
-	//colors := os.Args[1:2]
-	//for _, color := range colors {
-	//
-	//}
+
 	freq := rand.Float64() * 3.0 // relative frequency of y oscillator
 	anim := gif.GIF{LoopCount: nframes}
 	phase := 0.0 // phase difference
-	palette = []color.Color{bg_color, paint_color}
 	for i := 0; i < nframes; i++ {
 		rect := image.Rect(0, 0, 2*size+1, 2*size+1)
 		img := image.NewPaletted(rect, palette)
-		for t := 0.0; t < cycles*2*math.Pi; t += res {
+		img.SetColorIndex(0, 0, bgIndex)
+		for t := 0.0; t < float64(cycles)*2*math.Pi; t += res {
 			x := math.Sin(t)
 			y := math.Sin(t*freq + phase)
 			img.SetColorIndex(size+int(x*size+0.5), size+int(y*size+0.5),
-				blackIndex)
+				drawIndex)
 		}
 		phase += 0.1
 		anim.Delay = append(anim.Delay, delay)
 		anim.Image = append(anim.Image, img)
 	}
-	gif.EncodeAll(out, &anim) // NOTE: ignoring encoding errors
+	err := gif.EncodeAll(out, &anim) // NOTE: ignoring encoding errors
+	if err != nil {
+		fmt.Printf("Ошибка: %v\n", err)
+	}
 }
 
 //!-main
