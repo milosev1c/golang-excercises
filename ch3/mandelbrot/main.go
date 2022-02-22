@@ -52,12 +52,21 @@ func getSampledImage() {
 			r2, g2, b2, _ := color.Color.RGBA(bigImage[2*px+1][2*py])
 			r3, g3, b3, _ := color.Color.RGBA(bigImage[2*px][2*py+1])
 			r4, g4, b4, _ := color.Color.RGBA(bigImage[2*px+1][2*py+1])
-			//r := math.Sqrt(float64((r1 * r1 + r2 * r2 + r3 * r3 + r4 * r4) / 4))
-			//g := math.Sqrt(float64((g1 * g1 + g2 * g2 + g3 * g3 + g4 * g4) / 4))
-			//b := math.Sqrt(float64((b1 * b1 + b2 * b2 + b3 * b3 + b4 * b4) / 4))
-			r := (float64(r1>>8) + float64(r2>>8) + float64(r3>>8) + float64(r4>>8)) / 4
-			g := (float64(g1>>8) + float64(g2>>8) + float64(g3>>8) + float64(g4>>8)) / 4
-			b := (float64(b1>>8) + float64(b2>>8) + float64(b3>>8) + float64(b4>>8)) / 4
+			r1 >>= 8
+			r2 >>= 8
+			r3 >>= 8
+			r4 >>= 8
+			g1 >>= 8
+			g2 >>= 8
+			g3 >>= 8
+			g4 >>= 8
+			b1 >>= 8
+			b2 >>= 8
+			b3 >>= 8
+			b4 >>= 8
+			r := math.Sqrt(float64((r1*r1 + r2*r2 + r3*r3 + r4*r4) / 4))
+			g := math.Sqrt(float64((g1*g1 + g2*g2 + g3*g3 + g4*g4) / 4))
+			b := math.Sqrt(float64((b1*b1 + b2*b2 + b3*b3 + b4*b4) / 4))
 			smallImage[px][py] = color.RGBA{uint8(r), uint8(g), uint8(b), 255}
 		}
 	}
