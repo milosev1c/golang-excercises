@@ -24,8 +24,5 @@ func comma(s string) string {
 
 func main() {
 	fmt.Println(comma("123456"))
-	fmt.Println(comma("123456789"))
-	fmt.Println(comma("123456789.332"))
-	fmt.Println(comma("123"))
-	fmt.Println(comma("3330"))
+	fmt.Println(comma("-3330"))
 }
